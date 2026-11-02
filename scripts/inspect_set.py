@@ -2,7 +2,8 @@
 """Print an Ableton Live set's structure for stem planning (read-only).
 
 For every track: id, type, name, parent group, on/off (track activator),
-volume, frozen, device chain (plug-in names, bypassed devices marked),
+volume, frozen, device chain (plug-in names, bypassed devices marked,
+plug-ins with dither switched on flagged [DITHER ON]),
 active arrangement clips in bars, sends, sidechain sources and the source
 files of its audio clips. Also tempo, scale, loop, locators and the main
 chain, plus a MIDI pitch-class summary to help name the key.
@@ -31,11 +32,26 @@ def dev_name(d):
     un = v(d, 'UserName')
     return f'{d.tag}({un})' if un else d.tag
 
+def dither_on(d):
+    """True if a plug-in in this device (or inside its rack) has a dither parameter switched on."""
+    if v(d, 'On/Manual') == 'false': return False
+    for p in d.iter('PluginDevice'):
+        if v(p, 'On/Manual') == 'false': continue
+        for par in p.iter():
+            pn = v(par, 'ParameterName')
+            if pn and 'dither' in pn.lower():
+                try:
+                    if float(v(par, 'ParameterValue/Manual', '0')) != 0: return True
+                except ValueError:
+                    pass
+    return False
+
 def devices(chain):
     out = []
     for d in (chain if chain is not None else []):
         n = dev_name(d)
         if v(d, 'On/Manual') == 'false': n += ' [off]'
+        elif dither_on(d): n += ' [DITHER ON]'
         out.append(n)
     return out
 
@@ -113,6 +129,10 @@ def main():
         if t['sends']: print(f"{ind}      sends: {t['sends']}")
         if t['sidechain_sources']: print(f"{ind}      sidechain from: {t['sidechain_sources']}")
         if t['files']: print(f"{ind}      files: {'; '.join(t['files'])[:200]}")
+    dithered = [t['name'] for t in info['tracks'] if any(d.endswith('[DITHER ON]') for d in t['devices'])]
+    if dithered:
+        print(f"WARNING: dither is switched on in a plug-in on {dithered}. Stems must not be dithered: "
+              "ask the user to switch it off before exporting.")
 
 if __name__ == '__main__':
     main()

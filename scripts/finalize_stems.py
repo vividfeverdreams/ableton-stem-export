@@ -82,7 +82,7 @@ def main():
     manifest = {'song': song, 'bpm': bpm, 'key': key, 'sample_rate': sr0, 'frames': n0,
                 'seconds': round(n0 / sr0, 3), 'start_bar': cfg.get('start_bar', 1),
                 'common_gain_db': gain_db, 'sum_peak_before_db': round(sum_peak, 2),
-                'sum_peak_after_db': round(sum_peak + gain_db, 2), 'stems': []}
+                'sum_peak_after_db': round(sum_peak + gain_db, 2), 'dither': 'none', 'stems': []}
     for i, s in enumerate(stems, 1):
         name = f"{i:02d} {s['label']} - {tag}.wav"
         y = s['audio'] * g
@@ -122,7 +122,8 @@ def main():
              f"Every stem starts at bar {manifest['start_bar']} of the original arrangement and runs "
              f"{manifest['seconds']} s (tails included). Import them all at bar 1.1.1 and they line up.",
              f'All stems share one {gain_db:+.1f} dB trim, so their sum peaks around '
-             f"{manifest['sum_peak_after_db']} dBFS. Balance between stems is as mixed.", '']
+             f"{manifest['sum_peak_after_db']} dBFS. Balance between stems is as mixed.",
+             'No dither has been added. Dither once, at your final master.', '']
     lines += cfg.get('notes', [])
     lines += ['', 'Stems:'] + [f"  {s['file']}  (bars {s['first_bar']}-{s['last_bar']})" for s in manifest['stems']]
     if ref:

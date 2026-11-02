@@ -14,6 +14,9 @@ Ask Claude "export the stems for this track" and it will:
 - render everything **in Live itself** (your plug-ins, automation and
   sidechains, nothing re-created),
 - trim all stems by one shared amount for headroom (balance untouched),
+- **never dither** (32-bit float render rounded to 24-bit, Live's Dither
+  Options set to No Dither, plug-ins with dither on flagged), so whoever
+  finishes the track dithers once, at the master,
 - name every file `NN <Part> - <Song> - <BPM> BPM - <Key>.wav`,
 - add your reference master, a README for the person receiving them, and a QC report,
 - put your session back the way it was.

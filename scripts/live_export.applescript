@@ -28,6 +28,31 @@ on pickFromPopup(pb, itemName)
 	end tell
 end pickFromPopup
 
+on turnOffDither(d)
+	-- Stems are never dithered: dither belongs once, on the final master.
+	tell application "System Events" to tell process "Live"
+		set dth to my findIn(d, "AXPopUpButton", "Dither Options")
+		if dth is missing value then return "Dither Options not found"
+		if (value of dth as text) is "No Dither" then return "No Dither"
+		if not (enabled of dth) then return "disabled at this bit depth"
+		click dth
+		delay 0.8
+		set m to UI element 1 of group 1 of window 1
+		set seen to ""
+		repeat with e in (UI elements of m)
+			set nm to (name of e as text)
+			set seen to seen & nm & "; "
+			if nm contains "No Dither" then
+				click e
+				delay 0.5
+				return "No Dither"
+			end if
+		end repeat
+		key code 53 -- Escape closes the menu
+		return "FAILED: no No Dither item in " & seen
+	end tell
+end turnOffDither
+
 on stepTo(sl, target)
 	tell application "System Events"
 		set guard to 0
@@ -97,6 +122,10 @@ on run argv
 			set srb to my findIn(d, "AXPopUpButton", "Sample Rate")
 			if (value of srb as text) is not sampleRate then my pickFromPopup(srb, sampleRate)
 		end if
+		set ditherState to my turnOffDither(group 1 of window "Export Audio/Video")
+		if ditherState starts with "FAILED" or (bitDepth is not "32" and ditherState is not "No Dither") then
+			return "STOPPED, nothing exported: could not turn dither off (" & ditherState & ")"
+		end if
 
 		-- read back what Live will render
 		set d to group 1 of window "Export Audio/Video"
@@ -108,6 +137,8 @@ on run argv
 				end if
 			end try
 		end repeat
+
+		set summary to summary & "Dither=" & ditherState & "; "
 
 		click (my findIn(d, "AXButton", "Export"))
 		delay 2

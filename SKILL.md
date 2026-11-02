@@ -34,6 +34,11 @@ label, trim and check the group renders.
 - **Never write over the original `.als`.** All restructuring happens in a copy.
 - The master/main chain and any "premaster" limiter bus stay out of the stems.
   Group buses (drum bus, bass bus, music bus…) stay in: they are part of the sound.
+- **Never dither stems.** Dither belongs once, on the final master. Render at
+  32-bit float (Live only dithers below 32-bit) and let `finalize_stems.py`
+  round to 24-bit; the export script also sets Dither Options to No Dither and
+  stops if it can't. If `inspect_set.py` prints a dither WARNING (a limiter on a
+  group bus with its own dither on), ask the user to switch it off in their set first.
 - Ask the user only for what you can't find out: usually the key (if Live's
   scale isn't set) and who the stems are for (it changes nothing technical).
 
@@ -119,13 +124,14 @@ osascript -e 'tell application "System Events" to tell process "Live" to get nam
 ### 7. Render
 Pick the range: start at the first bar of the arrangement (match the
 reference master's start), length to the end plus 2 bars for tails. Note the
-dialog's current bit depth so you can put it back afterwards.
+dialog's current bit depth and dither so you can put them back afterwards.
 ```bash
 osascript scripts/live_export.applescript "<empty render folder>" <start bar> <length bars> 32 48000
 ```
 It sets All Individual Tracks, the range, 32-bit float, the sample rate,
-turns off return/main effects, normalize, loop, mono and video, prints what
-Live will render, then confirms the save panel. Live shows an "Export Audio…"
+Dither Options to No Dither, turns off return/main effects, normalize, loop,
+mono and video, prints what Live will render (check `Dither=`), then confirms
+the save panel. A reply starting `STOPPED` means nothing was exported. Live shows an "Export Audio…"
 window while rendering (its progress bar is readable with `ax_dump.applescript 1`);
 wait until it closes. A 115-track, 3.7-minute song took about 3.5 minutes.
 Live writes the files only at the end, so an empty folder mid-render is normal.
@@ -162,8 +168,8 @@ match the master, or a part is missing.
 - Reopen the user's set: `open -a "Ableton Live 12 Suite" "<original>.als"`.
   Live asks whether to save the export copy: confirm the dialog names the
   export copy, then "Don't Save".
-- Put the export dialog back the way it was (usually Rendered Track "Main"
-  and the user's bit depth): open it, set them, Cancel. Live keeps settings
+- Put the export dialog back the way it was (usually Rendered Track "Main",
+  the user's bit depth and their dither choice): open it, set them, Cancel. Live keeps settings
   changed before a Cancel.
 - Move the export copy `.als` out of the project to the Trash and delete the
   raw renders (they are gigabytes).
