@@ -67,6 +67,17 @@ def clips(tr):
                             'name': v(c, 'Name'), 'file': f.get('Value').split('/')[-1] if f is not None else None})
     return res
 
+def scale_name(ls):
+    # Live 12.1+ stores Root and a numeric Name; Live 12.0 stores RootNote and a text Name ("Major").
+    root = v(ls, 'ScaleInformation/Root', v(ls, 'ScaleInformation/RootNote', 0))
+    name = v(ls, 'ScaleInformation/Name', 0)
+    try:
+        name = SCALES.get(int(name), name)
+    except ValueError:
+        pass
+    return f"{NOTES[int(root) % 12]} {name}"
+
+
 def main():
     ap = argparse.ArgumentParser(); ap.add_argument('als'); ap.add_argument('--json')
     a = ap.parse_args()
@@ -76,7 +87,7 @@ def main():
     info = {
         'creator': root.get('Creator'),
         'tempo': float(main_tr.find('.//Tempo/Manual').get('Value')),
-        'scale': f"{NOTES[int(v(ls, 'ScaleInformation/Root', 0))]} {SCALES.get(int(v(ls, 'ScaleInformation/Name', 0)), v(ls, 'ScaleInformation/Name'))}",
+        'scale': scale_name(ls),
         'scale_note': 'C Major is also the default, so treat it as unset unless the user confirms it',
         'loop_bars': [float(v(ls, 'Transport/LoopStart')) / 4 + 1, (float(v(ls, 'Transport/LoopStart')) + float(v(ls, 'Transport/LoopLength'))) / 4 + 1],
         'locators': sorted([(float(v(l, 'Time')) / 4 + 1, v(l, 'Name')) for l in ls.findall('Locators/Locators/Locator')]),
