@@ -3,6 +3,7 @@
 -- Needs: Accessibility permission for the app running osascript.
 --
 -- usage: osascript live_export.applescript <output folder> <start bar> <length bars> [bit depth: 16|24|32] [sample rate]
+-- Bars can be fractional in quarter bars (4/4), e.g. start 9, length 25.75 for locators at 9 and 34.75.
 -- Returns once the export dialog has been confirmed; wait for the
 -- "Export Audio..." progress window to close before reading the files.
 --
@@ -176,14 +177,18 @@ on run argv
 		my pickFromPopup(my findIn(d, "AXPopUpButton", "Rendered Track Chooser"), "All Individual Tracks")
 		set d to group 1 of window "Export Audio/Video"
 
-		repeat with nm in {"Start of Rendered Audio File (Beat)", "Start of Rendered Audio File (Sixteenths)"}
-			my stepTo(my findIn(d, "AXSlider", nm as text), 1)
-		end repeat
-		repeat with nm in {"Length of Rendered Audio File (Beat)", "Length of Rendered Audio File (Sixteenths)"}
-			my stepTo(my findIn(d, "AXSlider", nm as text), 0)
-		end repeat
-		my stepTo(my findIn(d, "AXSlider", "Start of Rendered Audio File (Bar)"), startBar)
-		my stepTo(my findIn(d, "AXSlider", "Length of Rendered Audio File (Bar)"), lenBars)
+		-- bars may end on a beat (4/4): 34.75 = bar 34 beat 4; a length of 25.75 = 25 bars 3 beats.
+		-- Start beat/sixteenth count from 1, length beat/sixteenth from 0.
+		set startWhole to startBar div 1
+		set startBeat to (round ((startBar - startWhole) * 4) rounding to nearest) + 1
+		set lenWhole to lenBars div 1
+		set lenBeats to (round ((lenBars - lenWhole) * 4) rounding to nearest)
+		my stepTo(my findIn(d, "AXSlider", "Start of Rendered Audio File (Beat)"), startBeat)
+		my stepTo(my findIn(d, "AXSlider", "Start of Rendered Audio File (Sixteenths)"), 1)
+		my stepTo(my findIn(d, "AXSlider", "Length of Rendered Audio File (Beat)"), lenBeats)
+		my stepTo(my findIn(d, "AXSlider", "Length of Rendered Audio File (Sixteenths)"), 0)
+		my stepTo(my findIn(d, "AXSlider", "Start of Rendered Audio File (Bar)"), startWhole)
+		my stepTo(my findIn(d, "AXSlider", "Length of Rendered Audio File (Bar)"), lenWhole)
 
 		my setToggle(d, "Include Return and Main Effects", "Off")
 		my setToggle(d, "Render as Loop", "Off")

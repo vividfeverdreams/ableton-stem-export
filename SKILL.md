@@ -123,7 +123,10 @@ osascript -e 'tell application "System Events" to tell process "Live" to get nam
 
 ### 7. Render
 Pick the range: start at the first bar of the arrangement (match the
-reference master's start), length to the end plus 2 bars for tails. Note the
+reference master's start), length to the end plus 2 bars for tails. If the
+user names start/end locators ("flags"), render exactly from one to the other.
+Bars may be fractional in quarter bars (4/4): locators at 9 and 34.75 give
+start `9`, length `25.75` (25 bars 3 beats). Note the
 dialog's current bit depth and dither so you can put them back afterwards.
 ```bash
 osascript scripts/live_export.applescript "<empty render folder>" <start bar> <length bars> 32 48000
