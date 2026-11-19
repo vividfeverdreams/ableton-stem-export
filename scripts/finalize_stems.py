@@ -14,8 +14,10 @@ category_order[], sum_peak_target_db (default -6),
 reference {file} (optional), zip (default false), notes[] (optional),
 tail_bars (optional: cut every stem this many bars after the last sound, on
 a bar line), qc_dir (optional: where stem-qc.json goes).
-A source is matched against render file names (without .wav): exact match,
-else the unique file whose name ends with " <source>" or "-<source>".
+A source is a track name: it is matched exactly against the track part of the
+render names ("<set name> <track name>.wav", the set name taken from the main
+render "<set name>.wav"), else against whole file names (exact, then the unique
+one ending with " <source>" or "-<source>").
 """
 import glob, json, os, shutil, sys, zipfile
 import numpy as np, soundfile as sf
@@ -25,6 +27,13 @@ def db(x):
 
 def find(render_dir, src, files):
     names = {os.path.splitext(os.path.basename(f))[0]: f for f in files}
+    stems = set(names)
+    sets = [n for n in stems if len(stems) > 1 and all(m == n or m.startswith(n + ' ') for m in stems)]
+    if sets:
+        s = max(sets, key=len)
+        exact = [f for n, f in names.items() if n == s + ' ' + src]
+        if len(exact) == 1:
+            return exact[0]
     if src in names:
         return names[src]
     hits = [f for n, f in names.items() if n.endswith(' ' + src) or n.endswith('-' + src)]

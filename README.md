@@ -107,7 +107,9 @@ labelled. The scripts are plain Python and AppleScript:
 - A part printed alone through a bus limiter can come out slightly louder than
   it is in the full mix. Parts that play together through one limiter belong in one stem.
 - Returns with effects aren't printed into the stems unless you make them their own stem.
-- Rendering takes over Live for a few minutes.
+- Rendering takes over Live for a few minutes. Leave Live in front and don't
+  type while it runs: the save panel needs two keystrokes, and the script
+  stops rather than send them to another app.
 - The agent can't listen. Solo-check a couple of stems before sending.
 
 ## License

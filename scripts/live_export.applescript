@@ -5,6 +5,86 @@
 -- usage: osascript live_export.applescript <output folder> <start bar> <length bars> [bit depth: 16|24|32] [sample rate]
 -- Returns once the export dialog has been confirmed; wait for the
 -- "Export Audio..." progress window to close before reading the files.
+--
+-- Keystrokes go to whichever app is in front, not to Live. So the folder path
+-- is set through accessibility, the only keys sent (Cmd+Shift+G and one Return)
+-- wait until Live is frontmost, and Save is pressed by accessibility only after
+-- the panel shows the right folder. If Live won't stay in front, it stops.
+
+on liveToFront()
+	-- System Events' "set frontmost" doesn't stick while another app holds focus;
+	-- activating the running Live (whatever edition) through open -a does.
+	tell application "System Events" to set appPath to POSIX path of (file of process "Live")
+	repeat 6 times
+		do shell script "open -a " & quoted form of appPath
+		delay 0.5
+		tell application "System Events" to if frontmost of process "Live" then return true
+	end repeat
+	return false
+end liveToFront
+
+on panelControl(w, roleName, theTitle)
+	-- the save panel's buttons and Where: popup sit one level down, in a split group
+	tell application "System Events"
+		repeat with c in ({w} & (UI elements of w))
+			try
+				repeat with e in (UI elements of c)
+					try
+						if (role of e) is roleName and (title of e as text) is theTitle then return e
+					end try
+				end repeat
+			end try
+		end repeat
+	end tell
+	return missing value
+end panelControl
+
+on saveInto(outDir, summary, pressSave)
+	-- pressSave false stops just before Save (for testing the panel without rendering)
+	set stopNote to " Nothing was exported; the save panel is still open: Cancel it and run again with Live in front. "
+	tell application "System Events" to tell process "Live"
+		repeat 20 times
+			if exists window "Save" then exit repeat
+			delay 0.5
+		end repeat
+		if not (exists window "Save") then return "CHECK: no save panel appeared. " & summary
+		set w to window "Save"
+	end tell
+	if not my liveToFront() then return "STOPPED: Live would not stay in front, so no keys were sent." & stopNote & summary
+	tell application "System Events" to tell process "Live"
+		perform action "AXRaise" of w
+		if not frontmost then return "STOPPED: Live lost focus before Go to Folder." & stopNote & summary
+		keystroke "g" using {command down, shift down}
+		repeat 10 times
+			if (count of sheets of w) > 0 then exit repeat
+			delay 0.3
+		end repeat
+		if (count of sheets of w) is 0 then return "STOPPED: Go to Folder did not open." & stopNote & summary
+		set tf to text field 1 of sheet 1 of w
+		set value of tf to outDir
+		set value of attribute "AXFocused" of tf to true
+		delay 0.4
+	end tell
+	if not my liveToFront() then return "STOPPED: Live lost focus in Go to Folder." & stopNote & summary
+	tell application "System Events" to tell process "Live"
+		key code 36
+		delay 1.5
+	end tell
+	set wanted to do shell script "basename " & quoted form of outDir
+	set wh to my panelControl(w, "AXPopUpButton", "Where:")
+	set whereNow to ""
+	tell application "System Events" to if wh is not missing value then set whereNow to (value of wh as text)
+	if whereNow is not wanted then return "STOPPED: the save panel shows folder '" & whereNow & "', not '" & wanted & "'." & stopNote & summary
+	set sv to my panelControl(w, "AXButton", "Save")
+	if sv is missing value then return "STOPPED: no Save button found." & stopNote & summary
+	if not pressSave then return "READY: save panel shows '" & whereNow & "'"
+	tell application "System Events" to tell process "Live"
+		click sv
+		delay 2
+		if exists window "Save" then return "CHECK: save panel still open (a Replace prompt?). " & summary
+	end tell
+	return summary
+end saveInto
 
 on findIn(parentEl, roleName, descText)
 	tell application "System Events"
@@ -48,7 +128,7 @@ on turnOffDither(d)
 				return "No Dither"
 			end if
 		end repeat
-		key code 53 -- Escape closes the menu
+		if frontmost then key code 53 -- Escape closes the menu (only when Live is in front)
 		return "FAILED: no No Dither item in " & seen
 	end tell
 end turnOffDither
@@ -85,8 +165,8 @@ on run argv
 	set sampleRate to ""
 	if (count of argv) > 4 then set sampleRate to item 5 of argv
 
+	my liveToFront()
 	tell application "System Events" to tell process "Live"
-		set frontmost to true
 		if not (exists window "Export Audio/Video") then
 			click menu item "Export Audio/Video..." of menu "File" of menu bar 1
 			delay 2
@@ -142,21 +222,7 @@ on run argv
 
 		click (my findIn(d, "AXButton", "Export"))
 		delay 2
-		-- native save panel: Go to Folder, then confirm with Return
-		perform action "AXRaise" of window "Save"
-		keystroke "g" using {command down, shift down}
-		delay 1
-		keystroke outDir
-		delay 0.5
-		key code 36
-		delay 1.5
-		perform action "AXRaise" of window "Save"
-		key code 36
-		delay 2
-		if exists window "Save" then
-			-- e.g. a "Replace existing files?" confirmation
-			return "CHECK: save panel still open. " & summary
-		end if
-		return summary
 	end tell
+	-- native save panel: point it at outDir, check, then press Save
+	return my saveInto(outDir, summary, true)
 end run

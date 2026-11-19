@@ -130,19 +130,28 @@ osascript scripts/live_export.applescript "<empty render folder>" <start bar> <l
 ```
 It sets All Individual Tracks, the range, 32-bit float, the sample rate,
 Dither Options to No Dither, turns off return/main effects, normalize, loop,
-mono and video, prints what Live will render (check `Dither=`), then confirms
-the save panel. A reply starting `STOPPED` means nothing was exported. Live shows an "Export Audio…"
+mono and video, prints what Live will render (check `Dither=`), then points
+the save panel at the folder and presses Save once the panel shows that folder.
+Keystrokes go to whichever app is in front, so the script brings Live forward
+and only sends its two keys (Cmd+Shift+G, Return) while Live is frontmost. A
+reply starting `STOPPED` means nothing was exported and the save panel is still
+open: Cancel it, ask the user to leave Live in front, and run again. Live shows an "Export Audio…"
 window while rendering (its progress bar is readable with `ax_dump.applescript 1`);
 wait until it closes. A 115-track, 3.7-minute song took about 3.5 minutes.
 Live writes the files only at the end, so an empty folder mid-render is normal.
-Files are named `<Set name> <Track name>.wav`; the group copies are the ones
-whose track name starts with `STEM `. Every track is rendered, so expect
+Files are named `<Set name> <Track name>.wav` (the main mix comes out as
+`<Set name>.wav`); the group copies are the ones whose track name starts with
+`STEM `. Live hides its windows from accessibility while it loads a set or
+renders (`count of windows` is 0): wait, it hasn't crashed. Every track is rendered, so expect
 roughly 85 MB per track per 4 minutes at 32-bit: check free disk space first.
 
 ### 8. Check the renders
 ```bash
-python3 scripts/analyze_renders.py "<render folder>" --bpm <bpm> --start-bar <start> --match " STEM "
+python3 scripts/analyze_renders.py "<render folder>" --bpm <bpm> --start-bar <start> --prefix "STEM "
 ```
+`--prefix` and `--match` test the track name, not the file name, so the set
+name ("… - STEM EXPORT") doesn't make every file match. Add a second run with
+`--match "<bus name>"` for unsplit buses and loose tracks you're shipping.
 Every planned stem must be non-silent and play where the session says it
 does. A silent stem means a missing sample or a muted track: fix it, don't ship it.
 
@@ -183,7 +192,9 @@ match the master, or a part is missing.
 - "Undo" history and file times don't prove a set is saved; only Live's save prompt does. Save first.
 - Frozen tracks: if their freeze files can't be found Live offers to unfreeze. That only happens with a copy outside the project.
 - Group limiters react to what passes through them, so a part printed alone through a bus limiter can come out slightly louder or punchier than in the full mix. Parts that play at the same time and share a bus limiter belong in one stem.
-- Rendering takes over Live for a few minutes. Tell the user before you start.
+- Rendering takes over Live for a few minutes. Tell the user before you start, and ask them to leave Live in front and not type until it's done.
+- A render can change plug-in state (a loudness meter on the main chain, for one), so Live may ask to save the user's set when you switch to the export copy even though nothing was edited. Escape cancels the prompt; save through File → Save Live Set, then open the copy again.
+- To switch back without a "Save changes?" prompt for the export copy, save the copy first (File → Save Live Set); it goes to the Trash anyway, along with the backup Live makes of it in `Backup/`.
 
 ## Customising
 - Naming, grouping, headroom, sample rate and category order are all in the
